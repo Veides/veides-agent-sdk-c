@@ -1,5 +1,7 @@
 # Veides Agent SDK for C
 
+[![Build Status](https://travis-ci.org/Veides/veides-agent-sdk-c.svg?branch=master)](https://travis-ci.org/Veides/veides-agent-sdk-c)
+
 This repository contains code of Veides Agent SDK for C language. It allows C developers to easily connect agents and interact with Veides platform. 
 
 **Jump to**:
@@ -58,7 +60,7 @@ To uninstall Veides Agent SDk:
 sudo make uninstall
 ```
 
-NOTE: If `VEIDES_INSTALL_DEPENDENCIES` option is set to `ON`, dependencies will automatically be installed by CMake after they're built.
+> NOTE: If `VEIDES_INSTALL_DEPENDENCIES` option is set to `ON`, dependencies will automatically be installed by CMake after they're built.
 
 ## Samples
 
