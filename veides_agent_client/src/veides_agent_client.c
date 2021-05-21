@@ -3,7 +3,8 @@
 #include "veides_internal.h"
 #include "cJSON/cJSON.h"
 
-static void veides_client_actionMessageReceived(VeidesAgentClient *client, void* payload, size_t payloadlen);
+static void veides_client_actionMessageReceived(VeidesAgentClient *client, char *topic, size_t topiclen, void* payload, size_t payloadlen);
+static void veides_client_methodMessageReceived(VeidesAgentClient *client, char *topic, size_t topiclen, void* payload, size_t payloadlen);
 
 static char* veides_client_buildTopic(char *clientId, char *type) {
     char *format = "agent/%s/%s";
@@ -72,6 +73,18 @@ VEIDES_RC VeidesAgentClient_connect(VeidesAgentClient *client) {
         if (rc != VEIDES_RC_SUCCESS) {
             VEIDES_LOG_ERROR("Failed to set inernal actions handler (rc=%d)", rc);
         }
+
+        topic = veides_client_buildTopicWithName(veidesClient->clientId, "method", "+");
+
+        rc = veides_client_subscribe((void *) client, topic, 1);
+        if (rc != VEIDES_RC_SUCCESS) {
+            VEIDES_LOG_ERROR("Failed to subscribe to topic %s (rc=%d)", topic, rc);
+        }
+
+        rc = veides_client_setHandler((void *) client, topic, (void *) veides_client_methodMessageReceived);
+        if (rc != VEIDES_RC_SUCCESS) {
+            VEIDES_LOG_ERROR("Failed to set inernal methods handler (rc=%d)", rc);
+        }
     }
 
     return rc;
@@ -86,6 +99,45 @@ VEIDES_RC VeidesAgentClient_disconnect(VeidesAgentClient *client) {
     }
 
     return rc;
+}
+
+VEIDES_RC VeidesAgentClient_sendMethodResponse(VeidesAgentClient *client, char *name, char *payload, int code) {
+    VEIDES_RC rc = VEIDES_RC_SUCCESS;
+
+    if (!client) {
+        rc = VEIDES_RC_INVALID_HANDLE;
+        VEIDES_LOG_WARNING("Invalid agent client handle provided (rc=%d)", rc);
+        return rc;
+    }
+
+    if (!name || *name == '\0') {
+        rc = VEIDES_RC_NULL_PARAM;
+        VEIDES_LOG_WARNING("Invalid name provided (rc=%d)", rc);
+        return rc;
+    }
+
+    if (!payload || *payload == '\0') {
+        rc = VEIDES_RC_NULL_PARAM;
+        VEIDES_LOG_WARNING("Invalid payload provided (rc=%d)", rc);
+        return rc;
+    }
+
+    VeidesClient *veidesClient = (VeidesClient *) client;
+
+    if (veidesClient->clientId == NULL) {
+        rc = VEIDES_RC_INVALID_HANDLE;
+        VEIDES_LOG_WARNING("Invalid agent client handle provided (rc=%d)", rc);
+        return rc;
+    }
+
+    char *topic = veides_client_buildTopicWithName(veidesClient->clientId, "method_response", name);
+
+    char *format = "{\"payload\": %s, \"code\": %d}";
+    int len = strlen(format) + strlen(payload) + sizeof(int) - 2;
+    char response[len];
+    snprintf(response, len, format, payload, code);
+
+    return veides_client_publish((void *) client, topic, response, 1);
 }
 
 VEIDES_RC VeidesAgentClient_sendActionCompleted(VeidesAgentClient *client, char *name) {
@@ -351,6 +403,52 @@ VEIDES_RC VeidesAgentClient_setAnyActionHandler(VeidesAgentClient *client, Veide
     return rc;
 }
 
+VEIDES_RC VeidesAgentClient_setMethodHandler(VeidesAgentClient *client, char *name, VeidesMethodCallbackHandler callback) {
+    VEIDES_RC rc = VEIDES_RC_SUCCESS;
+
+    if (!client) {
+        rc = VEIDES_RC_INVALID_HANDLE;
+        VEIDES_LOG_WARNING("Invalid agent client handle provided (rc=%d)", rc);
+        return rc;
+    }
+
+    if (!callback || !name || *name == '\0') {
+        rc = VEIDES_RC_NULL_PARAM;
+        VEIDES_LOG_WARNING("Invalid name or callback provided (rc=%d)", rc);
+        return rc;
+    }
+
+    rc = veides_client_setMethodHandler((void *) client, name, callback);
+    if (rc != VEIDES_RC_SUCCESS) {
+        VEIDES_LOG_ERROR("Failed to set method handler (rc=%d)", rc);
+    }
+
+    return rc;
+}
+
+VEIDES_RC VeidesAgentClient_setAnyMethodHandler(VeidesAgentClient *client, VeidesAnyMethodCallbackHandler callback) {
+    VEIDES_RC rc = VEIDES_RC_SUCCESS;
+
+    if (!client) {
+        rc = VEIDES_RC_INVALID_HANDLE;
+        VEIDES_LOG_WARNING("Invalid agent client handle provided (rc=%d)", rc);
+        return rc;
+    }
+
+    if (!callback) {
+        rc = VEIDES_RC_NULL_PARAM;
+        VEIDES_LOG_WARNING("Invalid callback provided (rc=%d)", rc);
+        return rc;
+    }
+
+    rc = veides_client_setAnyMethodHandler((void *) client, callback);
+    if (rc != VEIDES_RC_SUCCESS) {
+        VEIDES_LOG_ERROR("Failed to set any method handler (rc=%d)", rc);
+    }
+
+    return rc;
+}
+
 VEIDES_RC VeidesAgentClient_setLogHandler(VeidesLogHandler *handler) {
     VEIDES_RC rc = VEIDES_RC_SUCCESS;
 
@@ -366,7 +464,7 @@ void VeidesAgentClient_setLogLevel(int level) {
     veides_log_setLevel(level);
 }
 
-static void veides_client_actionMessageReceived(VeidesAgentClient *client, void* payload, size_t payloadlen) {
+static void veides_client_actionMessageReceived(VeidesAgentClient *client, char *topic, size_t topiclen, void* payload, size_t payloadlen) {
     char *pl = NULL;
 
     pl = (char *) malloc(payloadlen+1);
@@ -434,7 +532,7 @@ static void veides_client_actionMessageReceived(VeidesAgentClient *client, void*
     if (handler != NULL) {
         VeidesActionCallbackHandler callback = (VeidesActionCallbackHandler) handler->callback;
         if (callback != NULL) {
-            (*callback)(client, actionEntities, size);
+            (*callback)(client, name, actionEntities, size);
             veides_utils_freePtr(actionEntities);
             goto endActionReceived;
         }
@@ -456,6 +554,47 @@ endActionReceived:
         cJSON_Delete(json);
     }
 
+    if (pl) {
+        free(pl);
+    }
+}
+
+static void veides_client_methodMessageReceived(VeidesAgentClient *client, char *topic, size_t topiclen, void* payload, size_t payloadlen) {
+    char *pl = NULL;
+
+    pl = (char *) malloc(payloadlen+1);
+
+    memset(pl, 0, payloadlen+1);
+    strncpy(pl, payload, payloadlen);
+
+    char *name = strrchr(topic, '/');
+    memmove(name, name+1, strlen(name));
+
+    VEIDES_LOG_DEBUG("Agent method invoked (name=%s,payload=%s)", name, pl);
+
+    VeidesClient *veidesClient = (VeidesClient *) client;
+
+    VeidesMethodHandler *handler = veides_client_getMethodHandler(veidesClient->methodHandlers, name);
+
+    if (handler != NULL) {
+        VeidesMethodCallbackHandler callback = (VeidesMethodCallbackHandler) handler->callback;
+        if (callback != NULL) {
+            (*callback)(client, name, payload, payloadlen);
+            goto endMethodInvoked;
+        }
+    }
+
+    handler = veides_client_getAnyMethodHandler(veidesClient->methodHandlers);
+
+    if (handler != NULL) {
+        VeidesAnyMethodCallbackHandler callback = (VeidesAnyMethodCallbackHandler) handler->callback;
+
+        if (callback != NULL) {
+            (*callback)(client, name, payload, payloadlen);
+        }
+    }
+
+endMethodInvoked:
     if (pl) {
         free(pl);
     }

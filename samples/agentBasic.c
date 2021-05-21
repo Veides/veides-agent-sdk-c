@@ -114,14 +114,36 @@ void printActionEntities(VeidesActionEntity *entities, size_t entitieslen) {
 //     VeidesAgentClient_sendActionCompleted(agent, name);
 // }
 
-void onSetLowSpeedAction(VeidesAgentClient *agent, VeidesActionEntity *entities, size_t entitieslen) {
-    log_message(stdout, "INFO: Action received: %s", "set_low_speed");
+void onSetLowSpeedAction(VeidesAgentClient *agent, char *name, VeidesActionEntity *entities, size_t entitieslen) {
+    log_message(stdout, "INFO: Action received: %s", name);
 
     printActionEntities(entities, entitieslen);
 
     VeidesAgentClient_sendTrail(agent, "speed_level", "low");
 
-    VeidesAgentClient_sendActionCompleted(agent, "set_low_speed");
+    VeidesAgentClient_sendActionCompleted(agent, name);
+}
+
+// void onAnyMethod(VeidesAgentClient *agent, char *name, char *payload, size_t payloadlen) {
+//     log_message(stdout, "INFO: Method invoked: (name=%s,payload=%s)", name, payload);
+
+//     char *format = "{\"received_payload\": %s}";
+//     int len = strlen(format) + payloadlen - 1;
+//     char response[len];
+//     snprintf(response, len, format, payload);
+
+//     VeidesAgentClient_sendMethodResponse(agent, name, response, 201);
+// }
+
+void onShutdownMethod(VeidesAgentClient *agent, char *name, char *payload, size_t payloadlen) {
+    log_message(stdout, "INFO: Method invoked: (name=%s,payload=%s)", name, payload);
+
+    char *format = "{\"received_payload\": %s}";
+    int len = strlen(format) + payloadlen - 1;
+    char response[len];
+    snprintf(response, len, format, payload);
+
+    VeidesAgentClient_sendMethodResponse(agent, name, response, 201);
 }
 
 int main(int argc, char *argv[]) {
@@ -193,6 +215,13 @@ int main(int argc, char *argv[]) {
     // You can also set a handler for any action received.
     // It will execute when there's no callback set for the particular action
     // VeidesAgentClient_setAnyActionHandler(agent, onAnyAction);
+
+    // Set a handler for particular method
+    VeidesAgentClient_setMethodHandler(agent, "shutdown", onShutdownMethod);
+
+    // You can also set a handler for any method invoked.
+    // It will execute when there's no callback set for the particular method
+    // VeidesAgentClient_setAnyMethodHandler(agent, onAnyMethod);
 
     // Send initial facts
     rc = sendInitialFacts(agent);

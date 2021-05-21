@@ -26,11 +26,12 @@
 
 typedef struct VeidesClient {
     VeidesAgentClientProperties *properties;
-    char              *clientId;
-    void              *mqttClient;
-    VeidesHandlers    *handlers;
-    VeidesActionHandlers    *actionHandlers;
-    int               connected;
+    char                        *clientId;
+    void                        *mqttClient;
+    VeidesHandlers              *handlers;
+    VeidesActionHandlers        *actionHandlers;
+    VeidesMethodHandlers        *methodHandlers;
+    int                         connected;
 } VeidesClient;
 
 VEIDES_RC veides_client_create(void **client, VeidesAgentClientProperties *properties);
@@ -42,8 +43,12 @@ VEIDES_RC veides_client_retry_connection(void *client);
 VEIDES_RC veides_client_setHandler(void *client, char * topic, VeidesCallbackHandler handler);
 VEIDES_RC veides_client_setActionHandler(void *client, char *name, VeidesActionCallbackHandler callback);
 VEIDES_RC veides_client_setAnyActionHandler(void *client, VeidesAnyActionCallbackHandler callback);
+VEIDES_RC veides_client_setMethodHandler(void *client, char *name, VeidesMethodCallbackHandler callback);
+VEIDES_RC veides_client_setAnyMethodHandler(void *client, VeidesAnyMethodCallbackHandler callback);
 VeidesActionHandler* veides_client_getActionHandler(VeidesActionHandlers *handlers, char *name);
 VeidesActionHandler* veides_client_getAnyActionHandler(VeidesActionHandlers *handlers);
+VeidesMethodHandler* veides_client_getMethodHandler(VeidesMethodHandlers *handlers, char *name);
+VeidesMethodHandler* veides_client_getAnyMethodHandler(VeidesMethodHandlers *handlers);
 VEIDES_RC veides_client_subscribe(void *client, char *topic, int qos);
 VEIDES_RC veides_client_publish(void *client, char *topic, char *payload, int qos);
 

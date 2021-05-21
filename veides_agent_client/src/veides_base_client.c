@@ -66,13 +66,35 @@ static VEIDES_RC veides_add_actionHandler(VeidesActionHandlers *handlers, Veides
     return rc;
 }
 
+static VEIDES_RC veides_add_methodHandler(VeidesMethodHandlers *handlers, VeidesMethodHandler *handler) {
+    VEIDES_RC rc = VEIDES_RC_SUCCESS;
+
+    VeidesMethodHandler **tmp = NULL;
+    tmp = realloc(handlers->entries, sizeof(VeidesMethodHandler *));
+    if (tmp == NULL) {
+        return VEIDES_RC_NOMEM;
+    }
+
+    handlers->entries = tmp;
+
+    handlers->entries[handlers->count] = handler;
+
+    if (handler->name == NULL) {
+        handlers->anyMethodId = handlers->count;
+    }
+
+    handlers->count++;
+
+    return rc;
+}
+
 static VeidesHandler* veides_client_getHandler(VeidesHandlers *handlers, char *topic) {
     int i = 0;
     VeidesHandler *handler = NULL;
     int found = 0;
     for (i = 0; i < handlers->count; i++) {
         handler = handlers->entries[i];
-        if (topic && handler->topic && strcmp(topic, handler->topic) == 0) {
+        if (topic && handler->topic && veides_utils_topic_match(handler->topic, topic) == VEIDES_RC_SUCCESS) {
             found = 1;
             break;
         }
@@ -121,10 +143,58 @@ VeidesActionHandler* veides_client_getAnyActionHandler(VeidesActionHandlers *han
         return NULL;
     }
 
-    VEIDES_LOG_DEBUG("got any action id %d", handlers->anyActionId);
+    VEIDES_LOG_DEBUG("Got any action id %d", handlers->anyActionId);
 
     if (handlers->anyActionId != -1) {
         handler = handlers->entries[handlers->anyActionId];
+    } else {
+        handler = NULL;
+    }
+
+    return handler;
+}
+
+VeidesMethodHandler* veides_client_getMethodHandler(VeidesMethodHandlers *handlers, char *name) {
+    VeidesMethodHandler *handler = NULL;
+
+    if (!handlers) {
+        VEIDES_LOG_ERROR("Invalid handle for method handlers provided (handlers=%s)", handlers ? "valid" : "NULL");
+        return NULL;
+    }
+
+    if (!name || *name == '\0') {
+        VEIDES_LOG_ERROR("Invalid arguments provided (name=%s)", name ? "Valid" : "NULL");
+        return NULL;
+    }
+
+    int i = 0;
+    int found = 0;
+    for (i = 0; i < handlers->count; i++) {
+        handler = handlers->entries[i];
+        if (handler->name && strcmp(name, handler->name) == 0) {
+            found = 1;
+            break;
+        }
+    }
+    if (found == 0) {
+        handler = NULL;
+    }
+
+    return handler;
+}
+
+VeidesMethodHandler* veides_client_getAnyMethodHandler(VeidesMethodHandlers *handlers) {
+    VeidesMethodHandler *handler = NULL;
+
+    if (!handlers) {
+        VEIDES_LOG_ERROR("Invalid handle for method handlers provided (handlers=%s)", handlers ? "valid" : "NULL");
+        return NULL;
+    }
+
+    VEIDES_LOG_DEBUG("Got any method id %d", handlers->anyMethodId);
+
+    if (handlers->anyMethodId != -1) {
+        handler = handlers->entries[handlers->anyMethodId];
     } else {
         handler = NULL;
     }
@@ -266,6 +336,9 @@ VEIDES_RC veides_client_create(void **veidesClient, VeidesAgentClientProperties 
     client->actionHandlers = (VeidesActionHandlers *) calloc(1, sizeof(VeidesActionHandlers));
     client->actionHandlers->count = 0;
     client->actionHandlers->anyActionId = -1;
+    client->methodHandlers = (VeidesMethodHandlers *) calloc(1, sizeof(VeidesMethodHandlers));
+    client->methodHandlers->count = 0;
+    client->methodHandlers->anyMethodId = -1;
 
     MQTTAsync mqttClient;
     MQTTAsync_createOptions create_opts = MQTTAsync_createOptions_initializer;
@@ -561,7 +634,7 @@ VEIDES_RC veides_client_subscribe(void *veidesClient, char *topic, int qos) {
     }
 
     for (int tries = 0; tries < 5; tries++) {
-        if (client->connected == 0 ) {
+        if (client->connected == 0) {
             VEIDES_LOG_WARNING("Client is not connected yet. Wait for client to connect and subscribe.");
             veides_utils_sleep(2000);
         }
@@ -603,7 +676,7 @@ VEIDES_RC veides_client_setHandler(void *veidesClient, char *topic, VeidesCallba
     int i=0;
     for (i = 0; i < client->handlers->count; i++) {
         VeidesHandler *handler = client->handlers->entries[i];
-        if (topic && handler->topic && strcmp(topic, handler->topic) == 0) {
+        if (topic && handler->topic && veides_utils_topic_match(handler->topic, topic) == VEIDES_RC_SUCCESS) {
             found = 1;
             break;
         }
@@ -638,7 +711,7 @@ VEIDES_RC veides_client_setActionHandler(void *veidesClient, char *name, VeidesA
     }
 
     int found = 0;
-    int i=0;
+    int i = 0;
     for (i = 0; i < client->actionHandlers->count; i++) {
         VeidesActionHandler *handler = client->actionHandlers->entries[i];
         if (handler->name && strcmp(name, handler->name) == 0) {
@@ -696,6 +769,75 @@ VEIDES_RC veides_client_setAnyActionHandler(void *veidesClient, VeidesAnyActionC
     return rc;
 }
 
+VEIDES_RC veides_client_setMethodHandler(void *veidesClient, char *name, VeidesMethodCallbackHandler callback) {
+    VEIDES_RC rc = VEIDES_RC_SUCCESS;
+    VeidesClient *client = (VeidesClient *) veidesClient;
+
+    if (!client) {
+        rc = VEIDES_RC_INVALID_HANDLE;
+        VEIDES_LOG_ERROR("Invalid agent client handle provided (rc=%d)", rc);
+        return rc;
+    }
+
+    int found = 0;
+    int i = 0;
+    for (i = 0; i < client->methodHandlers->count; i++) {
+        VeidesMethodHandler *handler = client->methodHandlers->entries[i];
+        if (handler->name && strcmp(name, handler->name) == 0) {
+            found = 1;
+            break;
+        }
+    }
+    if (found == 0) {
+        VeidesMethodHandler *handler = (VeidesMethodHandler *) calloc(1, sizeof(VeidesMethodHandler));
+        handler->name = strdup(name);
+        handler->callback = callback;
+
+        rc = veides_add_methodHandler(client->methodHandlers, handler);
+        if (rc == VEIDES_RC_SUCCESS) {
+            VEIDES_LOG_INFO("Added handler for method %s", name);
+        } else {
+            VEIDES_LOG_WARNING("Failed to set handler for method %s (rc=%d)", name, rc);
+        }
+    } else {
+        VeidesMethodHandler *handler = client->methodHandlers->entries[i];
+        handler->callback = callback;
+        VEIDES_LOG_INFO("Updated handler for method %s", name);
+    }
+
+    return rc;
+}
+
+VEIDES_RC veides_client_setAnyMethodHandler(void *veidesClient, VeidesAnyMethodCallbackHandler callback) {
+    VEIDES_RC rc = VEIDES_RC_SUCCESS;
+    VeidesClient *client = (VeidesClient *) veidesClient;
+
+    if (!client) {
+        rc = VEIDES_RC_INVALID_HANDLE;
+        VEIDES_LOG_ERROR("Invalid agent client handle provided (rc=%d)", rc);
+        return rc;
+    }
+
+    if (client->methodHandlers->anyMethodId == -1) {
+        VeidesMethodHandler *handler = (VeidesMethodHandler *) calloc(1, sizeof(VeidesMethodHandler));
+        handler->name = NULL;
+        handler->callback = callback;
+
+        rc = veides_add_methodHandler(client->methodHandlers, handler);
+        if (rc == VEIDES_RC_SUCCESS) {
+            VEIDES_LOG_INFO("Added handler for any method");
+        } else {
+            VEIDES_LOG_WARNING("Failed to set handler for any method (rc=%d)", rc);
+        }
+    } else {
+        VeidesMethodHandler *handler = client->methodHandlers->entries[client->methodHandlers->anyMethodId];
+        handler->callback = callback;
+        VEIDES_LOG_INFO("Updated handler for any method");
+    }
+
+    return rc;
+}
+
 static int veides_client_messageArrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message) {
     VEIDES_RC rc = VEIDES_RC_SUCCESS;
     VeidesClient *client = (VeidesClient *) context;
@@ -732,7 +874,7 @@ static int veides_client_messageArrived(void *context, char *topicName, int topi
 
         pl[payloadlen] = '\0';
         VEIDES_LOG_DEBUG("Invoke callback to process message (topic=%s)", topicName);
-        (*cb)(context, payload, payloadlen);
+        (*cb)(context, topicName, topicLen, payload, payloadlen);
     } else {
         VEIDES_LOG_DEBUG("No registered callback function is found to process the arrived message.");
     }

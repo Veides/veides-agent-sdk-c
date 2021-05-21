@@ -12,20 +12,31 @@ typedef struct {
 } VeidesHandler;
 
 typedef struct {
-    char *name;
-    void *callback;
-} VeidesActionHandler;
-
-typedef struct {
     VeidesHandler **entries;
     int count;
 } VeidesHandlers;
+
+typedef struct {
+    char *name;
+    void *callback;
+} VeidesActionHandler;
 
 typedef struct {
     VeidesActionHandler **entries;
     int count;
     int anyActionId;
 } VeidesActionHandlers;
+
+typedef struct {
+    char *name;
+    void *callback;
+} VeidesMethodHandler;
+
+typedef struct {
+    VeidesMethodHandler **entries;
+    int count;
+    int anyMethodId;
+} VeidesMethodHandlers;
 
 #if defined(__cplusplus)
  }

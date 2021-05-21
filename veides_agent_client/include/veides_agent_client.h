@@ -62,6 +62,32 @@ LIBRARY_API VEIDES_RC VeidesAgentClient_setActionHandler(VeidesAgentClient *agen
 LIBRARY_API VEIDES_RC VeidesAgentClient_setAnyActionHandler(VeidesAgentClient *agent, VeidesAnyActionCallbackHandler callback);
 
 /**
+ * @brief Set a callback for the particular method
+ *
+ * @param agent
+ * @param name
+ * @param callback
+ */
+LIBRARY_API VEIDES_RC VeidesAgentClient_setMethodHandler(VeidesAgentClient *agent, char *name, VeidesMethodCallbackHandler callback);
+
+/**
+ * @brief Set a callback for any method. It will execute when there's no
+ * callback set for the particular method (see VeidesAgentClient_setMethodHandler())
+ *
+ * @param agent
+ * @param callback
+ */
+LIBRARY_API VEIDES_RC VeidesAgentClient_setAnyMethodHandler(VeidesAgentClient *agent, VeidesAnyMethodCallbackHandler callback);
+
+/**
+ * @brief Send the response to invoked method
+ *
+ * @param agent
+ * @param name
+ */
+LIBRARY_API VEIDES_RC VeidesAgentClient_sendMethodResponse(VeidesAgentClient *agent, char *name, char *payload, int code);
+
+/**
  * @brief Send action completed message
  *
  * @param agent

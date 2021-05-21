@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.5.0)
 project(veides_agent_client C CXX)
 
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 1)
+set(VERSION_MINOR 2)
 set(VERSION_PATCH 0)
 
 set(VEIDES_AGENT_CLIENT_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
@@ -147,6 +147,7 @@ if(${VEIDES_BUILD_TESTS})
 
         tests/veides_agent_client.cpp
         tests/veides_agent_client_properties.cpp
+        tests/veides_utils.cpp
     )
 
     include_directories(
