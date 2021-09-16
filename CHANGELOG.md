@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0] - 2021-09-16
+
+### Added
+
+* Ability to check Veides connection state using `VeidesAgentClient_isConnected()`
+
+### Fixed
+
+* Memory allocation issue while adding handlers
+
 ## [0.2.0] - 2021-05-21
 
 ### Added

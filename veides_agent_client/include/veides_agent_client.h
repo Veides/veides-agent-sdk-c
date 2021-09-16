@@ -44,6 +44,13 @@ LIBRARY_API VEIDES_RC VeidesAgentClient_connect(VeidesAgentClient *agent);
 LIBRARY_API VEIDES_RC VeidesAgentClient_disconnect(VeidesAgentClient *agent);
 
 /**
+ * @brief Check Veides connection status
+ *
+ * @param agent
+ */
+LIBRARY_API VEIDES_RC VeidesAgentClient_isConnected(VeidesAgentClient *agent);
+
+/**
  * @brief Set a callback for the particular action
  *
  * @param agent

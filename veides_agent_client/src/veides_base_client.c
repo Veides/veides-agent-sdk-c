@@ -30,15 +30,13 @@ static VEIDES_RC veides_add_handler(VeidesHandlers *handlers, VeidesHandler *han
     VEIDES_RC rc = VEIDES_RC_SUCCESS;
 
     VeidesHandler **tmp = NULL;
-    tmp = realloc(handlers->entries, sizeof(VeidesHandler *));
+    tmp = realloc(handlers->entries, sizeof(VeidesHandler*) * (handlers->count + 1));
     if (tmp == NULL) {
         return VEIDES_RC_NOMEM;
     }
 
     handlers->entries = tmp;
-
     handlers->entries[handlers->count] = handler;
-
     handlers->count++;
 
     return rc;
@@ -48,13 +46,12 @@ static VEIDES_RC veides_add_actionHandler(VeidesActionHandlers *handlers, Veides
     VEIDES_RC rc = VEIDES_RC_SUCCESS;
 
     VeidesActionHandler **tmp = NULL;
-    tmp = realloc(handlers->entries, sizeof(VeidesActionHandler *));
+    tmp = realloc(handlers->entries, sizeof(VeidesActionHandler*) * (handlers->count + 1));
     if (tmp == NULL) {
         return VEIDES_RC_NOMEM;
     }
 
     handlers->entries = tmp;
-
     handlers->entries[handlers->count] = handler;
 
     if (handler->name == NULL) {
@@ -70,13 +67,12 @@ static VEIDES_RC veides_add_methodHandler(VeidesMethodHandlers *handlers, Veides
     VEIDES_RC rc = VEIDES_RC_SUCCESS;
 
     VeidesMethodHandler **tmp = NULL;
-    tmp = realloc(handlers->entries, sizeof(VeidesMethodHandler *));
+    tmp = realloc(handlers->entries, sizeof(VeidesMethodHandler*) * (handlers->count + 1));
     if (tmp == NULL) {
         return VEIDES_RC_NOMEM;
     }
 
     handlers->entries = tmp;
-
     handlers->entries[handlers->count] = handler;
 
     if (handler->name == NULL) {

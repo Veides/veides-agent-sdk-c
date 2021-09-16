@@ -101,6 +101,10 @@ VEIDES_RC VeidesAgentClient_disconnect(VeidesAgentClient *client) {
     return rc;
 }
 
+VEIDES_RC VeidesAgentClient_isConnected(VeidesAgentClient *client) {
+    return veides_client_isConnected((void *) client);
+}
+
 VEIDES_RC VeidesAgentClient_sendMethodResponse(VeidesAgentClient *client, char *name, char *payload, int code) {
     VEIDES_RC rc = VEIDES_RC_SUCCESS;
 

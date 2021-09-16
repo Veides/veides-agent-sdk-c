@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.5.0)
 project(veides_agent_client C CXX)
 
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 2)
+set(VERSION_MINOR 3)
 set(VERSION_PATCH 0)
 
 set(VEIDES_AGENT_CLIENT_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
@@ -111,12 +111,18 @@ endif()
 target_link_libraries(veides_agent_client ${CMAKE_THREAD_LIBS_INIT})
 
 install(
-    TARGETS
+    TARGETS veides_agent_client
 
-    veides_agent_client
+    EXPORT VeidesAgentClientConfig
 
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
+)
+
+install(
+    EXPORT VeidesAgentClientConfig
+
+    DESTINATION lib/cmake
 )
 
 install(
